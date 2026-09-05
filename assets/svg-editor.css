@@ -1,0 +1,52 @@
+#artwork-modal .modal { width: min(1240px, 100%); max-height: 96vh; overflow: auto; padding: 18px; }
+.artwork-heading, .artwork-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.artwork-heading { justify-content: space-between; }
+.artwork-heading h2 { margin: 0; }
+.artwork-heading select { padding: 8px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
+.artwork-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 14px; }
+.artwork-reference canvas { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; }
+.artwork-reference p { color: var(--muted); font-size: 12px; }
+.artwork-actions { margin-top: 12px; }
+.artwork-actions .spacer { flex: 1; }
+#artwork-status { min-height: 2.4em; }
+#artwork-editor { height: 650px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+#artwork-editor .flex { display: flex; }
+#artwork-editor .flex-col { flex-direction: column; }
+#artwork-editor .flex-wrap { flex-wrap: wrap; }
+#artwork-editor .flex-1 { flex: 1; min-height: 0; min-width: 0; }
+#artwork-editor .shrink-0 { flex-shrink: 0; }
+#artwork-editor .h-full { height: 100%; }
+#artwork-editor .items-center { align-items: center; }
+#artwork-editor .justify-center { justify-content: center; }
+#artwork-editor .gap-2 { gap: 8px; }
+#artwork-editor .gap-1 { gap: 4px; }
+#artwork-editor .overflow-hidden { overflow: hidden; }
+#artwork-editor .overflow-auto { overflow: auto; }
+#artwork-editor .overflow-y-auto { overflow-y: auto; }
+#artwork-editor .hidden, #artwork-editor [hidden] { display: none !important; }
+#artwork-editor .border-b { border-bottom: 1px solid var(--line); }
+#artwork-editor .border-l { border-left: 1px solid var(--line); }
+#artwork-editor .border-t { border-top: 1px solid var(--line); }
+#artwork-editor .p-2 { padding: 8px; }
+#artwork-editor .px-2 { padding-left: 8px; padding-right: 8px; }
+#artwork-editor button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px; min-width: 30px; min-height: 28px; font-size: 11px; cursor: pointer; }
+#artwork-editor .artwork-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 30px !important; height: 30px !important; flex-shrink: 0; color: var(--text); }
+#artwork-editor .artwork-icon-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+#artwork-editor button:focus-visible, #artwork-editor input:focus-visible, #artwork-editor select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#artwork-editor [class~="gap-0.5"] { gap: 2px; }
+.artwork-tooltip { position: fixed; z-index: 10000; max-width: min(270px, calc(100vw - 16px)); padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); box-shadow: 0 4px 16px #0008; font-size: 12px; line-height: 1.4; pointer-events: none; }
+#artwork-editor button:hover, #artwork-editor [class~="bg-primary/20"] { border-color: var(--accent); background: #55432e; }
+#artwork-editor input, #artwork-editor select { color: var(--text); background: var(--bg); border: 1px solid var(--line); max-width: 74px; height: 26px; font-size: 12px; }
+#artwork-editor input[type="color"] { width: 35px; }
+#artwork-editor input[type="file"] { max-width: none; }
+#artwork-editor .material-symbols-outlined { font-family: inherit; font-size: 10px; }
+#artwork-editor [data-ed$=":shapeList"] > * { max-width: 110px; overflow: hidden; }
+#artwork-editor [data-ed$=":shapeList"] { font-size: 11px; }
+#artwork-editor [data-ed$=":shapeList"] .material-symbols-outlined { display: none; }
+#artwork-editor [data-ed$=":status"] { font-size: 11px; color: var(--muted); }
+#artwork-editor [data-ed$=":canvas"] { flex-shrink: 0; }
+@media (max-width: 1000px) {
+  .artwork-layout { grid-template-columns: minmax(0, 1fr); }
+  .artwork-reference { display: flex; align-items: center; gap: 12px; }
+  .artwork-reference canvas { width: 180px; }
+}
