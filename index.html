@@ -158,30 +158,205 @@
     .field input[type="color"] { width: 100%; height: 34px; padding: 2px; }
     #file-help { padding: 16px; background: #393052; }
   </style>
+  <style>
+    :root {
+      --bg: #0d1017; --panel: #161b26; --panel-2: #1e2535;
+      --line: #2a3346; --text: #f4f6fb; --muted: #a2aec2;
+      --accent: #f2a65a; --accent-rgb: 242, 166, 90;
+      --violet: #aa92ff; --cyan: #38bdf8; --success: #34d399;
+      font-size: 12px;
+    }
+    * { letter-spacing: 0; }
+    button, input, select, textarea { font-weight: 400; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .app-shell { height: 100dvh; min-height: 0; grid-template-rows: 48px minmax(0, 1fr); }
+    .topbar { height: 48px; padding: 0 16px; gap: 12px; background: var(--panel); backdrop-filter: none; }
+    .brand { gap: 8px; font-size: 14px; font-weight: 600; }
+    .brand-mark { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 4px; background: var(--accent); color: #291908; font-size: 18px; }
+    .brand small { font-size: 10px; font-weight: 400; }
+    .project-title { width: 144px; min-width: 0; padding: 5px 8px; border-left: 1px solid var(--line); border-radius: 0; font-size: 12px; font-weight: 500; }
+    .save-state { max-width: 150px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .top-actions { gap: 6px; flex-shrink: 0; }
+    .btn, .icon-btn, .chip, .tool { min-height: 28px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .btn { padding: 5px 9px; }
+    .btn.ghost { color: var(--muted); }
+    .btn:hover, .icon-btn:hover, .tool:hover { background: #252e42; color: var(--text); }
+    .btn.primary:hover { background: #ffc794; color: #291908; }
+    .record-dot { width: 7px; height: 7px; margin-right: 6px; background: #f43f5e; box-shadow: none; }
+    .workspace { height: auto; min-height: 0; grid-template-columns: 260px minmax(0, 1fr) 320px; overflow: hidden; }
+    .sidebar, .inspector { min-width: 0; padding: 0 12px 16px; scrollbar-width: thin; scrollbar-color: #3b4760 transparent; }
+    .inspector { display: block; grid-column: auto; }
+    .panel-heading { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; margin: 0 -12px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #10151f; color: var(--text); font-size: 10px; font-weight: 600; text-transform: uppercase; }
+    .panel-heading span { color: var(--cyan); font-size: 9px; font-weight: 400; }
+    .section { margin-bottom: 20px; }
+    .section-title { margin-bottom: 8px; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0; }
+    .scene-label button { display: grid; place-items: center; width: 24px; height: 24px; margin-top: -6px; font-size: 18px; background: var(--panel-2); border-radius: 4px; }
+    .stack { gap: 4px; }
+    .list-item { padding: 8px; border-radius: 4px; border-color: transparent; background: transparent; }
+    .list-item.active { border-color: var(--line); background: var(--panel-2); box-shadow: inset 2px 0 var(--accent); }
+    .list-item strong { color: var(--text); font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+    .list-item span { margin-top: 0; font-size: 10px; line-height: 1.6; }
+    .list-item.active strong { color: #ffc794; }
+    .character-option { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; }
+    .character-option .portrait { width: 32px; height: 32px; border-radius: 50%; background: #f2a65a; color: #291908; font-size: 14px; font-weight: 600; }
+    .character-option .ready { display: none; }
+    .scene-card { grid-template-columns: 26px minmax(0, 1fr); gap: 8px; }
+    .scene-thumb { width: 26px; height: 30px; border-radius: 3px; background: #0d1017; color: var(--muted); }
+    .palette-grid { gap: 4px; }
+    .palette { min-height: 52px; padding: 6px 2px; border-radius: 4px; font-size: 10px; border-color: transparent; }
+    .palette .emoji { margin-bottom: 3px; font-size: 19px; }
+    .palette.active { border-color: var(--violet); background: #392c58; box-shadow: none; }
+    .tool-grid { gap: 4px; }
+    .tool { min-height: 32px; padding: 5px 8px; display: flex; justify-content: flex-start; gap: 8px; text-align: left; }
+    .tool b { font-size: 15px; }
+    .sidebar [data-action="edit-artwork"] { width: 100%; margin-top: 8px; text-align: left; border-color: transparent; }
+    .canvas-wrap { padding: 0; gap: 0; grid-template-rows: auto minmax(180px, 1fr) auto; background: var(--bg); overflow: hidden; }
+    .stage-toolbar { min-height: 44px; padding: 8px 12px; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); background: #10151f; }
+    .stage-toolbar .chip { padding: 5px 7px; border-radius: 4px; font-size: 10px; }
+    .stage-toolbar .chip.active { background: transparent; border-color: transparent; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .stage-toolbar .icon-btn { width: 28px; height: 28px; flex-shrink: 0; font-size: 17px; }
+    .stage { max-width: none; min-height: 0; height: 100%; border: 0; border-radius: 0; box-shadow: none; background: #0d1017; }
+    .avatar-stage { min-height: 0; height: 100%; padding: 24px; background: linear-gradient(180deg, #181e2b, #0d1017); }
+    .avatar-stage::before { inset: 16px; height: auto; border: 1px solid #ffffff0a; border-radius: 0; background: none; z-index: 0; pointer-events: none; }
+    .studio-canvas { position: relative; display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+    .stage-badge { left: 24px; bottom: 20px; padding: 4px 7px; border-radius: 3px; background: #10151fe6; font-size: 9px; }
+    .status-live { color: var(--cyan); }
+    .timeline { padding: 0 12px 10px; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+    .transport { min-height: 44px; gap: 6px; border-bottom: 1px solid var(--line); }
+    .transport .spacer { flex: 1; }
+    .transport .icon-btn { width: 28px; height: 28px; border-radius: 4px; flex-shrink: 0; }
+    #play-button { background: var(--accent); border-color: var(--accent); color: #291908; }
+    .timecode, .value, output, .timeline-times button, #seek-time { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .timecode { color: #ffc794; font-size: 10px; white-space: nowrap; }
+    .timeline-ruler { grid-template-columns: 64px minmax(0, 1fr); column-gap: 8px; row-gap: 4px; margin-top: 8px; }
+    .timeline-times { height: 18px; align-items: flex-start; }
+    .timeline-times button { font-size: 9px; }
+    .track-label { padding-top: 8px; font-size: 9px; }
+    .waveform, .visemes, .performance-track { border-radius: 2px; background: #10151f; }
+    .waveform { height: 30px; }
+    .waveform i { background: var(--cyan); opacity: .9; }
+    .visemes, .performance-track { height: 26px; }
+    .visemes button { height: 26px; border-color: #7860b2; background: #392c58; border-radius: 2px; }
+    .performance-track button { border-radius: 2px; font-size: 9px; text-align: left; padding-left: 5px; }
+    #expression-track button { background: #443322; border-color: #8f6944; color: #ffd4a7; }
+    #gesture-track button { background: #153b4e; border-color: #2c718c; color: #9bdaff; }
+    #camera-track button { background: #283243; border-color: #4b607a; color: #d6e3fc; }
+    .performance-track button[aria-pressed="true"] { outline: 1px solid var(--accent); outline-offset: -2px; filter: brightness(1.3); }
+    .playhead { background: var(--accent); }
+    .playhead::before { border-top-color: var(--accent); }
+    .seek-controls { gap: 6px; margin-top: 8px; font-size: 10px; }
+    #seek-time { width: 68px; border: 1px solid var(--line); border-radius: 3px; background: #0d1017; color: var(--text); }
+    .seek-controls .btn { min-height: 24px; padding: 3px 6px; font-size: 10px; }
+    #timeline-selection { flex-basis: 100%; font-size: 9px; min-height: 13px; }
+    #studio-status { padding: 0 0 10px; margin: -4px 0 14px; border-bottom: 1px solid var(--line); font-size: 10px; }
+    .lip-grid { gap: 4px; margin-bottom: 16px; }
+    .lip-grid button { padding: 5px 3px; border-color: transparent; border-radius: 3px; background: #10151f; font: 9px ui-monospace, monospace; }
+    .lip-grid button[aria-pressed="true"] { border-color: var(--violet); background: #392c58; }
+    .lip-grid svg { height: 26px; margin-bottom: 4px; border-radius: 2px; }
+    .field { margin-bottom: 12px; gap: 6px; }
+    .field label { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 400; }
+    .field input, .field select, .field textarea { padding: 7px 8px; border-radius: 4px; background: #10151f; font-size: 11px; }
+    .field input[type="range"] { height: 16px; padding: 0; margin: 0; accent-color: var(--accent); border: 0; background: transparent; cursor: pointer; }
+    #lip-width, #lip-opening, #pace { accent-color: var(--violet); }
+    .field output, .value { color: #ffc794; font-size: 10px; font-weight: 400; }
+    .field textarea { min-height: 68px; resize: vertical; line-height: 1.5; }
+    .studio-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 14px; }
+    .material-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .field input[type="color"] { height: 28px; padding: 2px; cursor: pointer; }
+    .selected-expression { gap: 8px; padding: 8px 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+    .selected-expression > .expression-icon { font-size: 22px; }
+    .selected-expression strong { font-size: 12px; font-weight: 500; }
+    .selected-expression div span { font-size: 10px; }
+    .toggle-row { gap: 12px; padding: 6px 0; font-size: 11px; }
+    .toggle { width: 28px; height: 16px; padding: 2px; flex-shrink: 0; }
+    .toggle::after { width: 12px; height: 12px; }
+    .toggle.on::after { transform: translateX(12px); }
+    [data-action="regenerate"] { background: var(--accent); color: #291908; border-color: var(--accent); }
+    .modal { border-radius: 8px; }
+    .modal h2 { font-size: 18px; font-weight: 600; }
+    body.preview-mode .workspace { height: 100%; }
+    body.preview-mode .avatar-stage { min-height: 0; }
+    @media (max-width: 1200px) {
+      .workspace { grid-template-columns: 208px minmax(0, 1fr) 280px; }
+      .topbar { gap: 8px; padding-inline: 12px; }
+      .save-state { display: none; }
+      .stage-toolbar #scene-name { display: none; }
+    }
+    @media (max-width: 820px) {
+      body { overflow: auto; }
+      .app-shell { height: auto; min-height: 100dvh; grid-template-rows: auto 1fr; }
+      .topbar { position: relative; height: auto; min-height: 48px; padding: 10px 12px; flex-wrap: wrap; }
+      .brand { flex: 1; }
+      .topbar > .spacer { display: none; }
+      .project-title { width: 140px; }
+      .top-actions { width: 100%; flex-wrap: wrap; gap: 6px; }
+      .topbar .ghost { display: inline-flex; align-items: center; }
+      .top-actions .btn { flex: 1 0 auto; min-height: 32px; }
+      .workspace { height: auto; display: flex; flex-direction: column; overflow: visible; }
+      .canvas-wrap { order: 0; min-height: 0; padding: 0; grid-template-rows: auto 360px auto; overflow: visible; }
+      .sidebar { order: 1; border: 0; border-top: 1px solid var(--line); }
+      .inspector { order: 2; border: 0; border-top: 1px solid var(--line); }
+      .sidebar, .inspector { overflow: visible; padding: 0 16px 16px; }
+      .panel-heading { position: static; margin-inline: -16px; padding-inline: 16px; }
+      .sidebar .section { display: block !important; }
+      .palette-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+      .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tool { min-height: 36px; }
+      .stage-toolbar { padding: 8px; gap: 4px; }
+      .stage-toolbar .chip { padding: 5px; }
+      .transport { flex-wrap: wrap; padding-block: 8px; }
+      .transport .btn { margin-left: auto; }
+      .avatar-stage { padding: 16px; }
+      .timeline { padding-inline: 8px; }
+      .timeline-ruler { grid-template-columns: 52px minmax(0, 1fr); column-gap: 4px; }
+      body.preview-mode .app-shell { height: 100dvh; }
+      body.preview-mode .workspace { flex: 1; min-height: 0; }
+    }
+  </style>
+  <link rel="stylesheet" href="./assets/studio-layout.css">
 </head>
 <body data-app-controller="character">
   <div id="file-help" hidden>Serve this folder over HTTP (for example, <code>python3 -m http.server 8081 --bind 127.0.0.1</code> from the character folder), then open <a href="http://localhost:8081/">Character Studio on localhost</a>.</div>
   <main class="app-shell">
     <header class="topbar">
       <a class="brand" href="./" aria-label="Character Studio home">
-        <img src="./assets/littlea-masks.png" alt="">
+        <span class="brand-mark" aria-hidden="true">A</span>
         <span>LittleA <small>Character</small></span>
       </a>
       <input class="project-title" aria-label="Project name" value="Coffee Break">
       <span class="save-state" aria-live="polite">Saved locally</span>
       <div class="spacer"></div>
+      <nav class="workspace-tabs" aria-label="Studio workspaces">
+        <button type="button" data-workspace-view="studio" aria-current="page">Studio</button>
+        <button type="button" data-workspace-view="audio">Audio &amp; Speech</button>
+        <button type="button" data-workspace-view="rigging">Rigging &amp; Visemes</button>
+        <button type="button" data-workspace-view="library">Takes &amp; Library</button>
+      </nav>
       <div class="top-actions">
         <button class="btn ghost" type="button" data-action="import-project">Open project</button>
         <button class="btn ghost" type="button" data-action="import-audio">Import audio</button>
         <button class="btn ghost" id="record-button" type="button" data-action="record"><span class="record-dot"></span><span>Record</span></button>
-        <button class="btn ghost" type="button" data-action="preview" data-message="Preview mode toggled">▶ Preview</button>
+        <button class="btn ghost" type="button" data-action="preview" data-message="Preview mode toggled">Preview</button>
         <button class="btn primary" type="button" data-modal-open="#export-modal">Export</button>
       </div>
     </header>
 
     <div class="workspace">
+      <aside class="asset-rail" aria-label="Workspace assets">
+        <div class="asset-heading">Workspace Assets</div>
+        <div class="asset-navigation">
+          <h2 class="section-title">Project Explorer</h2>
+          <button type="button" data-navigate="characters" aria-current="true"><span data-studio-icon="person-standing" aria-hidden="true"></span><span>Characters</span><output id="asset-character-count">1</output></button>
+          <button type="button" data-navigate="scenes"><span data-studio-icon="clapperboard" aria-hidden="true"></span><span>Scenes &amp; Stages</span><output id="asset-scene-count">1</output></button>
+          <button type="button" data-action="edit-artwork" data-artwork-target="canvas"><span data-studio-icon="shapes" aria-hidden="true"></span><span>Artwork Assets</span><output id="asset-artwork-count">0</output></button>
+          <h2 class="section-title">Audio Stems</h2>
+          <button type="button" data-navigate="audio"><span data-studio-icon="audio-lines" aria-hidden="true"></span><span>Vocal Takes</span><output id="asset-audio-count">0</output></button>
+        </div>
+        <div class="asset-footer"><span class="engine-indicator"></span>Local project <span>30 fps export</span></div>
+      </aside>
       <aside class="sidebar" aria-label="Character and scene navigator">
-        <section class="section">
+        <div class="panel-heading">Scene &amp; Rig Navigator <span>STUDIO</span></div>
+        <section class="section" id="characters-section">
           <div class="scene-label">
             <h2 class="section-title">Characters</h2>
             <button type="button" aria-label="Add character" data-action="add-character">＋</button>
@@ -194,9 +369,9 @@
             </button>
           </div>
         </section>
-        <section class="section">
+        <section class="section" id="scenes-section">
           <div class="scene-label">
-            <h2 class="section-title">Scenes</h2>
+            <h2 class="section-title">Scenes Queue</h2>
             <button type="button" aria-label="Add scene" data-action="add-scene">＋</button>
           </div>
           <div class="stack" data-select-group data-target="#scene-name">
@@ -213,7 +388,7 @@
         </section>
 
         <section class="section">
-          <h2 class="section-title">Face</h2>
+          <h2 class="section-title">Mood &amp; Expression</h2>
           <div class="palette-grid" data-select-group data-target="#expression-name">
             <button class="palette active" type="button" data-select="Warm"><span class="emoji" aria-hidden="true">🙂</span>Warm</button>
             <button class="palette" type="button" data-select="Bright"><span class="emoji" aria-hidden="true">😄</span>Bright</button>
@@ -226,9 +401,8 @@
         </section>
 
         <section class="section">
-          <h2 class="section-title">Gesture</h2>
+          <h2 class="section-title">Body Gestures</h2>
           <div class="tool-grid" data-select-group aria-label="Character gestures"></div>
-          <p class="studio-help">Face, gesture and camera choices are saved at the playhead for this scene. Play to animate; Energy controls strength and Pace controls speed.</p>
           <button class="btn ghost" type="button" data-action="edit-artwork" data-artwork-target="leftHand">Edit hands SVG</button>
         </section>
       </aside>
@@ -239,7 +413,7 @@
           <button class="chip" type="button" data-action="camera" title="Cycle framing and save a camera change at the playhead">Camera · close-up</button>
           <button class="chip" type="button" data-action="edit-artwork" data-artwork-target="canvas">Edit SVG artwork</button>
           <span class="spacer"></span>
-          <button class="icon-btn" type="button" aria-label="Fit stage to view" data-action="fit" data-message="Stage fitted to view">⌗</button>
+          <button class="icon-btn" type="button" aria-label="Enter stage fullscreen" aria-pressed="false" data-action="fit" title="Enter stage fullscreen">⌗</button>
           <button class="icon-btn" type="button" aria-label="Toggle stage grid" data-action="grid" data-message="Composition grid toggled">⊞</button>
         </div>
 
@@ -257,7 +431,7 @@
             <button class="icon-btn" id="play-button" type="button" aria-label="Play scene" data-action="play">▶</button>
             <span class="timecode" id="timecode">00:00.00 / 00:08.04</span>
             <span class="spacer"></span>
-            <button class="btn" type="button" data-action="align">↻ Auto-align</button>
+            <button class="btn" type="button" data-action="align">Auto-align</button>
           </div>
           <div class="timeline-ruler">
             <div id="timeline-times" class="timeline-times" aria-label="Audio time ruler"></div>
@@ -284,54 +458,64 @@
       </section>
 
       <aside class="inspector" aria-label="Voice and animation inspector">
-        <p id="studio-status" class="studio-help" role="status">Import or record audio to animate this scene.</p>
-        <section class="section" aria-label="Face Tool mouth editor">
-          <h2 class="section-title">Face Tool · Mouth shapes</h2>
+        <div class="inspector-tabs" role="tablist" aria-label="Inspector views">
+          <button id="inspector-lip-tab" type="button" role="tab" data-inspector-view="lip" aria-selected="true" aria-controls="inspector-content">Lip Sync</button>
+          <button id="inspector-performance-tab" type="button" role="tab" data-inspector-view="performance" aria-selected="false" aria-controls="inspector-content" tabindex="-1">Performance</button>
+          <button id="inspector-scene-tab" type="button" role="tab" data-inspector-view="scene" aria-selected="false" aria-controls="inspector-content" tabindex="-1">Scene &amp; Audio</button>
+        </div>
+        <div id="inspector-content" role="tabpanel" aria-labelledby="inspector-lip-tab">
+        <p id="studio-status" class="studio-help" role="status" data-inspector-content="scene" hidden>Import or record audio to animate this scene.</p>
+        <section class="section" aria-label="Face Tool mouth editor" data-inspector-content="lip">
+          <h2 class="section-title inspector-label">Phoneme Viseme Targets <span>15 shapes</span></h2>
           <div id="lip-shapes" class="lip-grid"></div>
-          <p class="studio-help">Choose any shape, then adjust it. Edits apply to every use of this shape for this character.</p>
+          <h2 class="section-title inspector-label">Target Modifier <span id="selected-viseme">REST</span></h2>
           <div class="field"><label for="lip-width">Lip width <output id="lip-width-value">100%</output></label><input id="lip-width" type="range" min="30" max="180" value="100"></div>
           <div class="field"><label for="lip-opening">Lip opening <output id="lip-opening-value">100%</output></label><input id="lip-opening" type="range" min="10" max="200" value="100"></div>
           <div class="studio-actions">
-            <button class="btn" data-action="set-pose" type="button">Set at playhead</button>
+            <button class="btn" data-action="set-pose" type="button" aria-label="Set at playhead">Set Keyframe</button>
+            <button class="btn" data-action="apply-shapes" type="button" aria-label="Apply size to all">Apply All</button>
             <button class="btn" data-action="delete-cue" type="button">Delete cue</button>
             <button class="btn" data-action="reset-pose" type="button">Reset shape</button>
-            <button class="btn" data-action="apply-shapes" type="button">Apply size to all</button>
           </div>
-          <div class="field"><label for="lip-color">Lip color</label><input id="lip-color" type="color" value="#8b3a3a"></div>
-          <div class="field"><label for="skin-color">Skin color</label><input id="skin-color" type="color" value="#fce4d6"></div>
+          <h2 class="section-title material-title">Rig Shader Material</h2>
+          <div class="material-fields">
+            <div class="field"><input id="lip-color" type="color" value="#8b3a3a"><label for="lip-color">Lip Tint <output id="lip-color-label">#8b3a3a</output></label></div>
+            <div class="field"><input id="skin-color" type="color" value="#fce4d6"><label for="skin-color">Skin Tone <output id="skin-color-label">#fce4d6</output></label></div>
+          </div>
         </section>
-        <section class="section">
-          <h2 class="section-title">Performance</h2>
+        <h2 class="section-title" data-inspector-content="lip performance">Performance &amp; Dynamics</h2>
+        <section class="section" data-inspector-content="performance" hidden>
           <div class="selected-expression">
             <span class="expression-icon" aria-hidden="true">🙂</span>
             <div><strong id="expression-name">Warm</strong><span>Face preset · 72% strength</span></div>
           </div>
         </section>
-        <div class="field">
+        <div class="field" data-inspector-content="lip scene">
           <label for="script">Script notes (not synthesized)</label>
           <textarea id="script" rows="4" data-bind="#spoken-preview">Okay—here's the part that makes your day a little easier.</textarea>
         </div>
-        <div class="field">
+        <div class="field" data-inspector-content="scene" hidden>
           <label for="scene-duration">Scene duration (seconds; set by audio when attached)</label>
           <input id="scene-duration" type="number" min="0.1" max="600" step="0.1" value="8.04">
           <button class="btn" type="button" data-action="remove-audio">Remove scene audio</button>
         </div>
-        <div class="field">
+        <div class="field" data-inspector-content="lip performance">
           <label for="pace">Pace <span class="value">0.96×</span></label>
           <input id="pace" type="range" min="50" max="150" value="96">
         </div>
-        <div class="field">
+        <div class="field" data-inspector-content="lip performance">
           <label for="energy">Energy <span class="value">64%</span></label>
           <input id="energy" type="range" min="0" max="100" value="64">
         </div>
-        <div class="field">
+        <div class="field" data-inspector-content="performance" hidden>
           <label for="expression">Expression strength <span class="value">72%</span></label>
           <input id="expression" type="range" min="0" max="100" value="72">
         </div>
-        <div class="toggle-row"><span>Blink naturally</span><button class="toggle on" type="button" aria-label="Toggle natural blinking" aria-pressed="true" data-action="toggle"></button></div>
-        <div class="toggle-row"><span>Head follow</span><button class="toggle on" type="button" aria-label="Toggle head follow" aria-pressed="true" data-action="toggle"></button></div>
-        <div class="toggle-row"><span>Auto lip sync</span><button class="toggle on" type="button" aria-label="Toggle automatic lip sync" aria-pressed="true" data-action="toggle"></button></div>
-        <button class="btn" style="width:100%;margin-top:14px" type="button" data-action="regenerate">Regenerate performance</button>
+        <div class="toggle-row" data-inspector-content="lip performance"><span>Blink naturally</span><button class="toggle on" type="button" aria-label="Toggle natural blinking" aria-pressed="true" data-action="toggle"></button></div>
+        <div class="toggle-row" data-inspector-content="lip performance"><span>Head follow</span><button class="toggle on" type="button" aria-label="Toggle head follow" aria-pressed="true" data-action="toggle"></button></div>
+        <div class="toggle-row" data-inspector-content="lip performance"><span>Auto lip sync</span><button class="toggle on" type="button" aria-label="Toggle automatic lip sync" aria-pressed="true" data-action="toggle"></button></div>
+        <button class="btn" style="width:100%;margin-top:10px" type="button" data-action="regenerate" data-inspector-content="lip performance">Regenerate performance</button>
+        </div>
       </aside>
     </div>
   </main>
@@ -373,6 +557,9 @@
       <div class="artwork-actions">
         <button class="btn ghost" type="button" data-artwork-action="reset">Reset this artwork</button>
         <button class="btn ghost" type="button" data-artwork-action="download">Download SVG</button>
+        <button class="btn ghost" type="button" data-artwork-action="import-character" title="Import a character draft; Apply artwork replaces the current character">Import character</button>
+        <button class="btn ghost" type="button" data-artwork-action="export-character" title="Export this character, including draft artwork and mouth settings">Export character</button>
+        <input id="artwork-character-file" type="file" accept=".json,application/json" aria-label="Character file" hidden>
         <span class="spacer"></span>
         <button class="btn ghost" type="button" data-artwork-action="cancel">Cancel</button>
         <button class="btn primary" type="button" data-artwork-action="apply">Apply artwork</button>

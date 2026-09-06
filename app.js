@@ -3,8 +3,10 @@ import { renderCharacterVideo } from "./video.mjs";
 import { $, $$, escapeHtml, toast } from "./ui.mjs";
 import { validateArtwork } from "./artwork-model.mjs";
 import { createArtworkEditor } from "./artwork-editor.mjs";
+import { initializeStudioLayout, setButtonIcon, showInspector, toggleStageFullscreen, updateStudioSummary } from "./studio-layout.mjs";
 
 const FPS = 30;
+initializeStudioLayout();
 const TRACK_LABELS = { expression: "Face", gesture: "Gesture", camera: "Camera" };
 const defaults = {
   title: "Coffee Break", selectedScene: 0, selectedCharacter: 0,
@@ -184,8 +186,9 @@ function stop() {
   if (source) { source.stop(); source.disconnect(); source = null; }
   playing = false;
   cancelAnimationFrame(frameRequest);
-  $("#play-button").textContent = "▶";
+  setButtonIcon($("#play-button"), "play");
   $("#play-button").setAttribute("aria-label", "Play scene");
+  $("#play-button").title = "Play scene";
   setElapsed(position);
 }
 
@@ -216,8 +219,9 @@ async function play() {
   }
   playing = true;
   playbackStart = startedAt - elapsed / rate();
-  $("#play-button").textContent = "❚❚";
+  setButtonIcon($("#play-button"), "pause");
   $("#play-button").setAttribute("aria-label", "Pause scene");
+  $("#play-button").title = "Pause scene";
   const tick = () => {
     if (!playing) return;
     setElapsed((context().currentTime - playbackStart) * rate());
@@ -289,6 +293,9 @@ function renderLips() {
   }
   $("#lip-color").value = c.lipColor || "#8b3a3a";
   $("#skin-color").value = c.skinColor || "#fce4d6";
+  $("#lip-color-label").textContent = $("#lip-color").value;
+  $("#skin-color-label").textContent = $("#skin-color").value;
+  $("#selected-viseme").textContent = selectedPose.toUpperCase();
 }
 
 function renderTimeline() {
@@ -320,6 +327,7 @@ function renderTimeline() {
 
 function render() {
   const s = scene();
+  updateStudioSummary(project);
   $(".project-title").value = project.title;
   $(".sidebar section:first-of-type .stack").innerHTML = project.characters.map((c, i) => `<button type="button" class="list-item character-option${c === character() ? " active" : ""}" data-character-index="${i}"><span class="portrait">${escapeHtml(c.name[0])}</span><span><strong>${escapeHtml(c.name)}</strong><span>${escapeHtml(c.role || "Performer")}</span></span></button>`).join("");
   $(".sidebar section:nth-of-type(2) .stack").innerHTML = project.scenes.map((s, i) => `<button type="button" class="list-item scene-card${i === project.selectedScene ? " active" : ""}" data-scene-index="${i}"><span class="scene-thumb">${i + 1}</span><span><strong>${escapeHtml(s.name)}</strong><span>${time(s.duration / rate())}${s.audio ? " · Audio" : " · Silent"}</span></span></button>`).join("");
@@ -514,10 +522,13 @@ document.addEventListener("click", event => run(async () => {
   }
   if (b.closest(".palette-grid") || b.closest(".tool-grid")) {
     storePerformance(b.closest(".palette-grid") ? "expression" : "gesture", b.dataset.select);
-    if (b.dataset.select === "Custom") { $("#lip-width").scrollIntoView({ block: "center" }); $("#lip-width").focus(); }
+    if (b.dataset.select === "Custom") { showInspector("lip"); $("#lip-width").scrollIntoView({ block: "center" }); $("#lip-width").focus(); }
     return;
   }
-  if (action === "edit-artwork") { stop(); artworkEditor.open(b.dataset.artworkTarget); }
+  if (action === "edit-artwork") {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    stop(); artworkEditor.open(b.dataset.artworkTarget);
+  }
   else if (action === "play") await play();
   else if (action === "rewind") { stop(); previewPose = false; selectedChange = null; setElapsed(0); }
   else if (action === "delete-performance-cue") {
@@ -533,7 +544,7 @@ document.addEventListener("click", event => run(async () => {
   else if (action === "record") await toggleRecording();
   else if (action === "export") await exportProject();
   else if (action === "grid") $(".avatar-stage").classList.toggle("show-grid");
-  else if (action === "fit") canvas.scrollIntoView({ block: "center" });
+  else if (action === "fit") await toggleStageFullscreen();
   else if (action === "camera") {
     if (playing) setElapsed((context().currentTime - playbackStart) * rate());
     const current = performanceAt(project, scene(), elapsed).camera;

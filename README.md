@@ -20,11 +20,14 @@ not move with the folder.
 ## Package layout
 
 - `app.js`, `ui.mjs`, `index.html`: Studio controls and UI.
+- `studio-layout.mjs`, `assets/studio-layout.css`: workspace navigation, inspector
+  views, live asset counts, and the reference studio layout.
 - `performance.mjs`: audio analysis, lips, gestures, face/camera timeline,
   vector rendering and self-contained LAX export.
 - `video.mjs`: deterministic video rendering and offline audio mixing.
 - `artwork-editor.mjs`, `artwork-model.mjs`: SVG editing drafts, validated vector
   artwork, and conversion between drawing tools and saved paths.
+- `character-file.mjs`: validated, versioned reusable character JSON files.
 - `lib/`: Face Tool geometry, visemes, SVG/XML helpers, FFmpeg adapter and worker.
 - `assets/`: local stylesheet and logo (App Lab assets bundled for portability).
 - `vendor/ffmpeg/`: optional installed FFmpeg WASM core and license information.
@@ -57,6 +60,28 @@ licenses are included as `LICENSE-MIT` and `LICENSE-APACHE`.
 Projects, including audio, autosave in IndexedDB. Storage failures are reported;
 export a Studio project backup if storage is unavailable or full. Browser
 storage is local to the site's origin and browser profile.
+
+## Studio workspace
+
+The Workspace Assets rail links to characters, scenes, SVG artwork and audio.
+Its counts reflect the current project; Artwork Assets counts custom vector
+paths. The adjacent navigator holds scene selection, expressions and gestures.
+The stage and timeline stay docked on desktop and stack above the panels on mobile.
+
+Each panel header has a collapse/expand icon. Side panels fold into narrow rails
+on desktop and compact headers on mobile; collapsing the timeline keeps playback
+controls visible. Layout choices are remembered locally, independently of project
+files. Workspace navigation automatically reopens the panel it targets.
+
+The stage toolbar's fullscreen icon enters browser fullscreen for the canvas,
+with the timeline hidden. Use the exit icon or Escape to return to the studio.
+Opening the SVG editor exits fullscreen before displaying its dialog.
+
+The inspector has **Lip Sync**, **Performance**, and **Scene & Audio** tabs.
+Use Scene & Audio to change a silent scene's duration or remove attached audio;
+Performance contains expression strength. The top workspace navigation focuses
+these existing tools and the scene library. It does not open separate applications.
+Fonts and Lucide icons are bundled locally for offline use.
 
 ## Edit face, hands and canvas as SVG
 
@@ -105,6 +130,26 @@ Applied artwork is stored in Studio JSON and IndexedDB, baked into animated LAX,
 and rendered into FFmpeg WASM video. **Current scene SVG** in the export dialog
 downloads a static vector snapshot at the playhead; use LAX to retain animation
 and audio.
+
+### Import and export a character
+
+In **Edit SVG artwork**, use **Export character** to download a
+`.character.json` file. It contains the character's name, role, skin and lip
+colors, mouth-shape settings, and custom face, body and hand artwork, including
+unsaved drafts. Generated artwork stays generated, preserving automatic facial
+animation. Scene backgrounds, foregrounds, audio and timeline cues are excluded.
+
+**Import character** loads that file into the current editor draft. Existing
+character drafts are replaced; scene-layer drafts are kept. **Apply artwork**
+replaces the current character, including its name and settings, in every scene
+that uses it. **Cancel** or Escape leaves the saved character unchanged. To add
+a separate performer, create a character with the Characters **+** button first,
+then import into that character's artwork editor.
+
+Character files use `format: "littlea-character"` and `version: 1` and are limited
+to 20 MB. Invalid files and unsupported artwork are rejected. Full Studio JSON
+projects still use **Open project**; individual SVG parts use the drawing
+toolbar's SVG import.
 
 ## Voice-aligned performance timeline
 

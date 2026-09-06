@@ -2,6 +2,70 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
+export async function exerciseCharacterFiles(page) {
+  const modal = page.locator("#artwork-modal");
+  const target = page.locator("#artwork-target");
+  const fill = page.locator('#artwork-editor [data-ed$=":fill"]');
+  const open = () => page.getByRole("button", { name: "Edit SVG artwork", exact: true }).click();
+  const cancel = () => modal.locator('[data-artwork-action="cancel"]').click();
+  const apply = () => modal.locator('[data-artwork-action="apply"]').click();
+  const exportCharacter = async () => {
+    const waiting = page.waitForEvent("download");
+    await modal.getByRole("button", { name: "Export character", exact: true }).click();
+    const download = await waiting;
+    assert.ok(download.suggestedFilename().endsWith(".character.json"));
+    const chunks = [];
+    for await (const chunk of await download.createReadStream()) chunks.push(chunk);
+    return JSON.parse(Buffer.concat(chunks).toString());
+  };
+  const importCharacter = async data => {
+    const waiting = page.waitForEvent("filechooser");
+    await modal.getByRole("button", { name: "Import character", exact: true }).click();
+    await (await waiting).setFiles({ name: "character.json", mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(data)) });
+    await page.waitForFunction(() => document.querySelector("#artwork-status").textContent.startsWith("Imported"));
+  };
+  await open();
+  const original = await exportCharacter();
+  await target.selectOption("face");
+  await fill.fill("#112233");
+  await target.selectOption("leftHand");
+  await fill.fill("#334455");
+  await target.selectOption("canvas");
+  await fill.fill("#314159");
+  const exported = await exportCharacter();
+  assert.equal(exported.character.artwork.face[0].fill, "#112233", "export includes unsaved face edits");
+  assert.equal(exported.character.artwork.leftHand[0].fill, "#334455", "export includes drafts from other targets");
+  assert.equal(exported.character.artwork.canvas, undefined, "scene artwork is not exported as character artwork");
+  const imported = { ...exported, character: { ...exported.character, name: "Nova", role: "Presenter",
+    skinColor: "#aabbcc", lipColor: "#884433", mouthSettings: { aa: { width: 150, opening: 140 } } } };
+  await importCharacter(imported);
+  assert.deepEqual((await exportCharacter()).character, imported.character);
+  await cancel();
+  await open();
+  assert.deepEqual(await exportCharacter(), original, "Cancel preserves the original character");
+  await fill.fill("#314159");
+  await importCharacter(imported);
+  assert.equal(await fill.inputValue(), "#314159", "import keeps the existing scene draft");
+  await apply();
+  assert.equal(await page.locator(".character-option strong").first().textContent(), "Nova");
+  assert.equal(await page.locator("#skin-color").inputValue(), "#aabbcc");
+  await page.waitForFunction(() => document.querySelector(".save-state").textContent === "Saved locally (including audio)");
+  await page.reload();
+  await page.locator("#lip-shapes button").first().waitFor();
+  await open();
+  assert.deepEqual(await exportCharacter(), imported, "applied character survives a reload");
+  assert.equal(await fill.inputValue(), "#314159", "scene artwork survives import and reload");
+  await page.locator("#artwork-character-file").setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from("{") });
+  await page.waitForFunction(() => document.querySelector("#artwork-status").textContent.includes("not valid JSON"));
+  assert.deepEqual(await exportCharacter(), imported, "invalid import leaves the draft intact");
+  await importCharacter(original);
+  await apply();
+  await open();
+  assert.deepEqual(await exportCharacter(), original, "importing defaults removes previous custom settings and paths");
+  await cancel();
+}
+
 export async function exerciseSvgArtwork(page, exportAs, original) {
   const modal = page.locator("#artwork-modal");
   const host = page.locator("#artwork-editor");

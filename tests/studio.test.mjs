@@ -7,10 +7,143 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { basename, extname, resolve, sep } from "node:path";
 import { execFileSync } from "node:child_process";
-import { exerciseSvgArtwork } from "./artwork-browser.mjs";
+import { exerciseCharacterFiles, exerciseSvgArtwork } from "./artwork-browser.mjs";
 
 const source = fileURLToPath(new URL("../", import.meta.url));
 const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".png": "image/png", ".wasm": "application/wasm" };
+
+test("Studio UI keeps its stage, timeline and controls usable across viewport sizes", async () => {
+  const server = createServer(async (request, response) => {
+    try {
+      const pathname = new URL(request.url, "http://localhost").pathname;
+      const file = resolve(source, `.${pathname === "/" ? "/index.html" : pathname}`);
+      if (!file.startsWith(source)) { response.writeHead(403).end(); return; }
+      response.setHeader("content-type", types[extname(file)] || "application/octet-stream");
+      response.end(await readFile(file));
+    } catch { response.writeHead(404).end(); }
+  });
+  let browser;
+  try {
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    browser = await chromium.launch({ headless: true, executablePath: process.env.LA_CHROMIUM || undefined });
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}`);
+    await page.locator("#lip-shapes button").first().waitFor();
+    for (const [width, height] of [[1440, 900], [960, 768], [390, 844], [320, 740]]) {
+      await page.setViewportSize({ width, height });
+      const layout = await page.evaluate(() => {
+        const stage = document.querySelector(".stage").getBoundingClientRect();
+        const timeline = document.querySelector(".timeline").getBoundingClientRect();
+        return { overflow: document.documentElement.scrollWidth > innerWidth,
+          stageHeight: stage.height, timelineBottom: timeline.bottom };
+      });
+      assert.equal(layout.overflow, false, `no horizontal overflow at ${width}px`);
+      assert.ok(layout.stageHeight >= 180, "the stage keeps a usable height");
+      if (width > 820) assert.ok(layout.timelineBottom <= height, "desktop timeline fits the viewport");
+      for (const action of ["import-project", "import-audio", "record", "preview"]) {
+        assert.equal(await page.locator(`[data-action="${action}"]`).isVisible(), true);
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.getByRole("button", { name: "Wave", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: "Wave", exact: true }).getAttribute("aria-pressed"), "true");
+    await page.locator("#play-button").click();
+    await page.waitForFunction(() => !document.querySelector("#timecode").textContent.startsWith("00:00."));
+    assert.equal(await page.locator("#play-button").getAttribute("title"), "Pause scene");
+    await page.locator("#play-button").click();
+    assert.equal(await page.locator("#play-button").getAttribute("title"), "Play scene");
+    await page.getByRole("button", { name: "Edit SVG artwork", exact: true }).click();
+    assert.equal(await page.locator("#artwork-modal").isVisible(), true);
+    await page.locator('[data-artwork-action="cancel"]').click();
+    await page.locator('[data-modal-open="#export-modal"]').click();
+    assert.equal(await page.locator("#export-modal").isVisible(), true);
+    await page.locator('[data-action="cancel-export"]').click();
+    await page.locator('[data-action="preview"]').click();
+    assert.equal(await page.locator(".timeline").isVisible(), false);
+    await page.locator('[data-action="preview"]').click();
+    assert.equal(await page.locator(".timeline").isVisible(), true);
+    assert.equal(await page.locator(".brand-mark").textContent(), "A");
+    await page.getByRole("button", { name: "Enter stage fullscreen", exact: true }).click();
+    await page.waitForFunction(() => document.fullscreenElement === document.querySelector(".canvas-wrap"));
+    assert.equal(await page.locator(".timeline").isVisible(), false);
+    assert.equal(await page.getByRole("button", { name: "Exit stage fullscreen", exact: true }).getAttribute("aria-pressed"), "true");
+    const fullscreenBounds = await page.locator(".canvas-wrap").boundingBox();
+    const screen = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+    assert.equal(fullscreenBounds.width, screen.width);
+    assert.equal(fullscreenBounds.height, screen.height);
+    await page.getByRole("button", { name: "Exit stage fullscreen", exact: true }).click();
+    await page.waitForFunction(() => document.fullscreenElement === null);
+    assert.equal(await page.locator(".timeline").isVisible(), true);
+    await page.getByRole("button", { name: "Enter stage fullscreen", exact: true }).click();
+    await page.waitForFunction(() => !!document.fullscreenElement);
+    await page.evaluate(() => document.exitFullscreen());
+    await page.getByRole("button", { name: "Enter stage fullscreen", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Enter stage fullscreen", exact: true }).click();
+    await page.waitForFunction(() => !!document.fullscreenElement);
+    await page.getByRole("button", { name: "Edit SVG artwork", exact: true }).click();
+    await page.waitForFunction(() => document.fullscreenElement === null);
+    assert.equal(await page.locator("#artwork-modal").isVisible(), true);
+    await page.locator('[data-artwork-action="cancel"]').click();
+    assert.equal(await page.locator("#asset-character-count").textContent(), "1");
+    assert.equal(await page.locator("#asset-scene-count").textContent(), "1");
+    await page.getByRole("tab", { name: "Performance", exact: true }).click();
+    assert.equal(await page.locator("#expression").isVisible(), true);
+    assert.equal(await page.locator("#lip-shapes").isVisible(), false);
+    await page.keyboard.press("ArrowRight");
+    assert.equal(await page.locator("#scene-duration").isVisible(), true);
+    await page.getByRole("button", { name: "Rigging & Visemes", exact: true }).click();
+    assert.equal(await page.locator("#lip-shapes").isVisible(), true);
+    await page.getByRole("button", { name: "Audio & Speech", exact: true }).click();
+    assert.equal(await page.locator("#scene-duration").isVisible(), true);
+    await page.getByRole("button", { name: "Studio", exact: true }).click();
+    assert.equal(await page.locator("#lip-shapes").isVisible(), true);
+    const expandedStage = await page.locator(".stage").boundingBox();
+    for (const name of ["workspace assets", "scene navigator", "inspector", "timeline"]) {
+      await page.getByRole("button", { name: `Collapse ${name}`, exact: true }).click();
+      assert.equal(await page.getByRole("button", { name: `Expand ${name}`, exact: true }).getAttribute("aria-expanded"), "false");
+    }
+    const collapsedStage = await page.locator(".stage").boundingBox();
+    assert.ok(collapsedStage.width > expandedStage.width + 400, "collapsed side panels free space for the stage");
+    assert.ok(collapsedStage.height > expandedStage.height + 150, "collapsed timeline frees vertical space");
+    assert.equal(await page.locator(".timeline-ruler").isVisible(), false);
+    assert.equal(await page.locator("#play-button").isVisible(), true, "transport stays available");
+    for (let reload = 0; reload < 2; reload++) {
+      await page.reload();
+      await page.locator('[data-panel-toggle="assets"]').waitFor();
+      for (const name of ["workspace assets", "scene navigator", "inspector", "timeline"]) {
+        assert.equal(await page.getByRole("button", { name: `Expand ${name}`, exact: true }).getAttribute("aria-expanded"), "false");
+      }
+    }
+    await page.getByRole("button", { name: "Rigging & Visemes", exact: true }).click();
+    assert.equal(await page.locator("#lip-shapes").isVisible(), true, "workspace navigation reopens inspector");
+    await page.getByRole("button", { name: "Expand workspace assets", exact: true }).click();
+    await page.locator('[data-navigate="characters"]').click();
+    assert.equal(await page.locator("#characters-section").isVisible(), true, "asset navigation reopens scene navigator");
+    await page.getByRole("button", { name: "Expand timeline", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await page.locator(".timeline-ruler").isVisible(), true, "keyboard expands timeline");
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const name of ["workspace assets", "scene navigator", "inspector", "timeline"]) {
+      await page.getByRole("button", { name: `Collapse ${name}`, exact: true }).click();
+    }
+    assert.equal(await page.locator("#characters-section").isVisible(), false);
+    assert.equal(await page.locator("#inspector-content").isVisible(), false);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    for (const name of ["workspace assets", "scene navigator", "inspector", "timeline"]) {
+      await page.getByRole("button", { name: `Expand ${name}`, exact: true }).click();
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.getByRole("button", { name: "Add scene", exact: true }).click();
+    assert.equal(await page.locator("#asset-scene-count").textContent(), "2");
+    await exerciseCharacterFiles(page);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser?.close();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
 
 for (const mount of ["/", "/portable/nested/character/"]) {
 test(`Standalone Character Studio at ${mount} imports audio, edits every pose, persists, and exports real media`, { timeout: 90000 }, async () => {
@@ -109,18 +242,15 @@ test(`Standalone Character Studio at ${mount} imports audio, edits every pose, p
     assert.equal(await page.locator("#video-transparent").isChecked(), true, "video transparency is enabled by default");
     const presentation = await page.evaluate(() => {
       const stylesheet = document.querySelector('link[rel="stylesheet"]');
-      const logo = document.querySelector('img[src="./assets/littlea-masks.png"]');
       return {
         stylesheet: stylesheet?.href,
         rules: stylesheet?.sheet?.cssRules.length || 0,
-        logo: logo?.currentSrc,
-        logoLoaded: Boolean(logo?.complete && logo.naturalWidth > 0 && logo.naturalHeight > 0),
+        brand: document.querySelector(".brand-mark")?.textContent,
       };
     });
     assert.equal(presentation.stylesheet, `${origin}${mount}assets/app.css`);
     assert.ok(presentation.rules > 0, "the copied local stylesheet is loaded and parsed");
-    assert.equal(presentation.logo, `${origin}${mount}assets/littlea-masks.png`);
-    assert.equal(presentation.logoLoaded, true, "the copied local logo is loaded and decoded");
+    assert.equal(presentation.brand, "A", "the local brand mark renders without an image dependency");
     assert.equal(await page.locator("#lip-shapes button").count(), 15);
     const waveBounds = await page.locator("#waveform").boundingBox();
     await page.locator("#waveform").click({ position: { x: waveBounds.width / 2, y: waveBounds.height / 2 } });
@@ -349,8 +479,10 @@ test(`Standalone Character Studio at ${mount} imports audio, edits every pose, p
     assert.equal(await page.locator('#gesture-track [data-baseline="false"]').count(), 0);
     assert.equal(await page.locator('#camera-track [data-baseline="false"]').count(), 0);
     assert.equal(await page.locator('[data-action="camera"]').textContent(), "Camera · medium shot");
+    await page.getByRole("tab", { name: "Scene & Audio", exact: true }).click();
     await page.locator("#scene-duration").fill("0.5");
     await page.locator("#scene-duration").press("Tab");
+    await page.getByRole("tab", { name: "Lip Sync", exact: true }).click();
     await page.getByRole("button", { name: "Add character", exact: true }).click();
     await page.locator("#new-character-name").fill("Nova");
     await page.locator('[data-action="confirm-character"]').click();

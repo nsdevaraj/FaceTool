@@ -3,6 +3,7 @@ import { ARTWORK_TARGETS, partsToShapes, shapesToParts } from "./artwork-model.m
 import { getArtworkForEditing, drawFrame } from "./performance.mjs";
 import { $, $$ } from "./ui.mjs";
 import { mountArtworkToolbar } from "./artwork-toolbar.mjs";
+import { MAX_CHARACTER_FILE_SIZE, parseCharacter, serializeCharacter } from "./character-file.mjs";
 
 const signature = shapes => JSON.stringify(shapesToParts(shapes));
 const descriptions = {
@@ -19,6 +20,7 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
   const host = $("#artwork-editor");
   const status = $("#artwork-status");
   const picker = $("#artwork-target");
+  const characterFile = $("#artwork-character-file");
   picker.replaceChildren(...ARTWORK_TARGETS.map(target => {
     const option = document.createElement("option");
     option.value = target.id;
@@ -27,6 +29,7 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
   }));
   const drafts = new Map();
   let editor, target, previousFocus, project, scene, character, disposeToolbar;
+  let liveProject, characterIndex, importVersion = 0;
   const error = value => { status.textContent = value.message || String(value); };
   const owner = item => item.scope === "character" ? character : scene;
 
@@ -46,7 +49,7 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
     return changes;
   }
 
-  function preview() {
+  function draftState() {
     const changes = editedProject();
     const previewCharacter = { ...character, artwork: { ...character.artwork } };
     const previewScene = { ...scene, artwork: { ...scene.artwork } };
@@ -55,6 +58,11 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
       if (parts === undefined) delete data[item.id];
       else data[item.id] = parts;
     }
+    return { previewCharacter, previewScene };
+  }
+
+  function preview() {
+    const { previewCharacter, previewScene } = draftState();
     drawFrame($("#artwork-preview"), {
       ...project, characters: project.characters.map(c => c === character ? previewCharacter : c),
     }, previewScene, getTime());
@@ -88,6 +96,8 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
   }
 
   function close() {
+    importVersion++;
+    characterFile.value = "";
     disposeToolbar?.();
     disposeToolbar = null;
     editor?.destroy();
@@ -115,6 +125,34 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
   picker.addEventListener("change", () => {
     try { mount(picker.value); } catch (e) { error(e); }
   });
+  characterFile.addEventListener("change", async () => {
+    const file = characterFile.files[0];
+    if (!file) return;
+    const version = ++importVersion;
+    try {
+      if (file.size > MAX_CHARACTER_FILE_SIZE) throw new Error("Character files must be smaller than 20 MB.");
+      const text = await file.text();
+      if (version !== importVersion) return;
+      const imported = parseCharacter(text);
+      storeDraft();
+      disposeToolbar?.();
+      disposeToolbar = null;
+      editor?.destroy();
+      editor = null;
+      for (const item of ARTWORK_TARGETS) {
+        if (item.scope === "character") drafts.delete(item.id);
+      }
+      character = imported;
+      project.characters[characterIndex] = character;
+      mount(target.id);
+      preview();
+      status.textContent = `Imported "${character.name}" into the draft. Apply artwork replaces the current character; Cancel keeps the original.`;
+    } catch (e) {
+      if (version === importVersion) error(e);
+    } finally {
+      if (version === importVersion) characterFile.value = "";
+    }
+  });
   modal.addEventListener("click", event => {
     const action = event.target.closest("[data-artwork-action]")?.dataset.artworkAction;
     if (!action) return;
@@ -122,6 +160,15 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
       if (action === "cancel") close();
       else if (action === "reset") reset();
       else if (action === "preview") preview();
+      else if (action === "import-character") characterFile.click();
+      else if (action === "export-character") {
+        const { previewCharacter } = draftState();
+        const file = new Blob([serializeCharacter(previewCharacter)], { type: "application/json" });
+        if (file.size > MAX_CHARACTER_FILE_SIZE) throw new Error("Character files must be smaller than 20 MB.");
+        const name = character.name.replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "character";
+        download(`${name}.character.json`, file);
+        status.textContent = "Character exported with draft artwork, colors and mouth settings. Scene layers and audio are not included.";
+      }
       else if (action === "download") {
         shapesToParts(editor.getShapes());
         download(`${target.id}.svg`, new Blob([editor.exportSvg(target.width, target.height)], { type: "image/svg+xml" }));
@@ -133,6 +180,7 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
           if (parts === undefined) delete data[item.id];
           else data[item.id] = parts;
         }
+        liveProject.characters[characterIndex] = character;
         close();
         onApply();
       }
@@ -154,9 +202,12 @@ export function createArtworkEditor({ getProject, getScene, getTime, onApply, do
   return {
     open(id = "canvas") {
       previousFocus = document.activeElement;
-      project = getProject();
+      liveProject = getProject();
       scene = getScene();
-      character = project.characters[scene.characterIndex ?? project.selectedCharacter ?? 0];
+      characterIndex = scene.characterIndex ?? liveProject.selectedCharacter ?? 0;
+      character = structuredClone(liveProject.characters[characterIndex]);
+      project = { ...liveProject, characters: [...liveProject.characters] };
+      project.characters[characterIndex] = character;
       drafts.clear();
       modal.classList.add("open");
       $("main").inert = true;
